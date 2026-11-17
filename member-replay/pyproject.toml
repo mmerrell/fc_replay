@@ -1,0 +1,15 @@
+[project]
+name = "member-replay"
+version = "1.0.0"
+description = "Temporal workflows modelling a Crystal Palace Member's lifecycle (Your Palace Replay prototype)"
+requires-python = ">=3.10"
+# Worker Versioning needs Python SDK >= 1.11.0. Upgrade-on-Continue-as-New (is_target_worker_deployment_version_changed)
+# landed later: pin to whatever release you confirm has it.
+dependencies = ["temporalio>=1.11.0", "httpx>=0.27"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,15 @@
+services:
+  worker:
+    build:
+      context: .
+      args:
+        BUILD_ID: "1.0"          # bump per deploy; the image tag should match
+    image: member-replay-worker:1.0
+    environment:
+      TEMPORAL_ADDRESS: host.docker.internal:7233   # e.g. `temporal server start-dev` on the host
+      TEMPORAL_NAMESPACE: default
+      TEMPORAL_TASK_QUEUE: member-replay
+      TEMPORAL_DEPLOYMENT: member-replay
+      CORTEX_BASE_URL: http://host.docker.internal:8080   # the cortex-mock container
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
