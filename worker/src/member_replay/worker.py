@@ -6,18 +6,21 @@ from temporalio.common import VersioningBehavior, WorkerDeploymentVersion
 from temporalio.worker import Worker, WorkerDeploymentConfig
 
 from member_replay import config
-from member_replay.activities import fetch_member_activity, list_member_ids
+from member_replay.activities import CortexActivities
+from member_replay.cortex import CortexClient
 from member_replay.workflows import MemberSyncWorkflow, MemberWorkflow
 
 
 async def main() -> None:
     logging.basicConfig(level=logging.INFO)
     client = await Client.connect(config.TEMPORAL_ADDRESS, namespace=config.TEMPORAL_NAMESPACE)
+    cortex = CortexClient(config.CORTEX_BASE_URL, config.CORTEX_CLIENT_ID, config.CORTEX_API_KEY)
+    acts = CortexActivities(client, cortex)
     worker = Worker(
         client,
         task_queue=config.TASK_QUEUE,
         workflows=[MemberWorkflow, MemberSyncWorkflow],
-        activities=[list_member_ids, fetch_member_activity],
+        activities=[acts.list_member_ids, acts.sync_members],
         deployment_config=WorkerDeploymentConfig(
             version=WorkerDeploymentVersion(
                 deployment_name=config.DEPLOYMENT_NAME,

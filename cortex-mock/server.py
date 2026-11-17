@@ -266,6 +266,19 @@ class H(BaseHTTPRequestHandler):
             active = {r["scvUserId"] for r in D.TICKETS + D.RETAILS + D.STRUCTURED}
             return self.send(200, {"data": [{**{k: f[k] for k in ("scvUserId", "fullName", "emailAddress")},
                                              "hasActivity": f["scvUserId"] in active} for f in D.USERS]})
+        pm = re.match(r"^/v1/clients/([^/]+)/client-preferences/([^/]+)$", u.path)
+        if pm:
+            if pm.group(1) != D.CLIENT_ID or pm.group(2) != "favouritePlayer":
+                return self.send(404, {"error": "Preference not found"})
+            pref = dict(D.FAVOURITE_PLAYER_PREF)
+            auth = self.headers.get("Authorization", "")
+            if auth.startswith("Bearer "):  # real Cortex: the fan's JWT. MOCK: the token is simply the scvUserId.
+                uid = auth[7:]
+                if not any(x["scvUserId"] == uid for x in D.USERS):
+                    return self.send(401, {"error": "Unknown mock token"})
+                fav = D.FAVOURITE.get(uid)
+                pref["selectedOptionIds"] = [fav] if fav else []  # INFERRED response field
+            return self.send(200, {"data": pref})
         for pat, name in ROUTES:
             m = re.match(pat, u.path)
             if m:

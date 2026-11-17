@@ -17,3 +17,6 @@ CORTEX_API_KEY = os.getenv("CORTEX_API_KEY", "")
 def member_workflow_id(scv_user_id: str) -> str:
     """One workflow per Member, keyed on the Cortex scvUserId."""
     return f"member-{scv_user_id}"
+
+# Sync workflow tuning
+SYNC_SCHEDULE_ID = os.getenv("SYNC_SCHEDULE_ID", "member-sync")

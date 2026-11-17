@@ -31,3 +31,13 @@ venueName, transactionValue, seatRow, hasAttended, sourceSystemName, category, a
 Guessed (marked INFERRED in data.py): ticket `stand`/`seatNumber`, retail `productName`/`category`, ID field names
 on structured events, the `{"data": ...}` wrapper on REST lists, the SFV route path, and SFV auth (the docs don't say).
 Swap in real responses from Cortex's Postman collection when you get access.
+
+## Members' profiles and favourite player (added)
+All PII is invented. SFV `user` now has firstName, lastName, postcodeTown (home city), age, birthDate, countryCode,
+distanceToClub, mobileNumber (Ofcom drama range, not real) and an empty `metadata`. Tickets/retail use the real SFV field
+names (homeTeamName, awayTeamName, standName, blockName, productDescription, productCategory, ...).
+
+Favourite player is a Preferences Centre preference, as Cortex's docs model it (players are options with `linkedIds`):
+`GET /v1/clients/DEMO/client-preferences/favouritePlayer`. Without a token you get the definition and options; with
+`Authorization: Bearer <scvUserId>` (MOCK: real Cortex wants the fan's JWT) you also get `selectedOptionIds`
+(INFERRED field name; about 90% of Members have picked one).

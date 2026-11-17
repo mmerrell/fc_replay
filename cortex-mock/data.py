@@ -129,9 +129,11 @@ _FIRST = ["Adrian", "Priya", "Tom", "Sade", "Liam", "Maya", "Josh", "Chloe", "De
 _LAST = ["Clarke", "Shah", "Whitfield", "Bakare", "Doyle", "Ortiz", "Nolan", "Park", "Mehta", "Gray", "Iyer",
          "Cole", "Reid", "Hussain", "Lowe", "Costa", "Barry", "Eze", "Mills", "Frost", "Rahman", "Dunn", "Ward",
          "Okoye", "Banks"]
-POSTCODES = [("SE25 6PU", "Croydon", "SE", "London"), ("CR0 1AA", "Croydon", "CR", "London"),
-             ("BR3 4AA", "Beckenham", "BR", "London"), ("SW16 1AA", "Streatham", "SW", "London"),
-             ("RH1 1AA", "Redhill", "RH", "South East"), ("SM1 1AA", "Sutton", "SM", "London")]
+POSTCODES = [("SE25 6PU", "Croydon", "SE", "London", 1.2), ("CR0 1AA", "Croydon", "CR", "London", 2.0),
+             ("BR3 4AA", "Beckenham", "BR", "London", 4.5), ("SW16 1AA", "Streatham", "SW", "London", 5.0),
+             ("SM1 1AA", "Sutton", "SM", "London", 7.5), ("RH1 1AA", "Redhill", "RH", "South East", 17.0),
+             ("BN1 1AA", "Brighton", "BN", "South East", 43.0), ("RG1 1AA", "Reading", "RG", "South East", 52.0),
+             ("M1 1AA", "Manchester", "M", "North West", 200.0), ("EH1 1AA", "Edinburgh", "EH", "Scotland", 330.0)]
 STANDS = ["Holmesdale Road", "Main Stand", "Arthur Wait", "Whitehorse Lane"]
 RETAIL = [("SHOP-HOME-KIT", "Home Shirt 26/27", "Kit", 65.0), ("SHOP-SCARF", "Matchday Scarf", "Accessories", 18.0),
           ("SHOP-BEANIE", "Eagles Beanie", "Accessories", 15.0), ("FOOD-PIE", "Matchday Pie", "Food", 5.5),
@@ -141,6 +143,7 @@ APP_EVENTS = [("app", "open", "home"), ("app", "view", "match_centre"), ("app", 
               ("poll", "vote", "motm"), ("app", "scan", "ticket_entry")]
 
 USERS, TICKETS, RETAILS, STRUCTURED = [], [], [], []
+FAVOURITE = {}  # scvUserId -> favourite-player option id (or None)
 INACTIVE = set(rnd.sample(range(NUM_FANS), INACTIVE_FANS))
 
 
@@ -149,17 +152,25 @@ def _row_ids(prefix, n):
 
 
 for f in range(NUM_FANS):
-    name = f"{_FIRST[f % len(_FIRST)]} {_LAST[(f * 7 + f // len(_FIRST)) % len(_LAST)]}"
+    first = _FIRST[f % len(_FIRST)]
+    last = _LAST[(f * 7 + f // len(_FIRST)) % len(_LAST)]
+    name = f"{first} {last}"
     email = f"{name.lower().replace(' ', '.')}@example.test"
     uid = hashlib.md5(email.encode()).hexdigest()
-    pc, town, area, region = rnd.choice(POSTCODES)
+    pc, town, area, region, dist = rnd.choice(POSTCODES)
+    born = NOW.date().replace(year=NOW.year - rnd.randint(18, 78), month=rnd.randint(1, 12), day=rnd.randint(1, 28))
     joined = NOW - timedelta(days=rnd.randint(200, 2500))
     keen = rnd.random()  # 0..1 = how often this fan goes
     USERS.append({
         "scvUserId": uid, "scvUserIdType": "MD5_CLIENT_EMAIL", "fullName": name, "emailAddress": email,
         "postcode": pc, "postcodeTown": town, "postcodeArea": area, "postcodeRegion": region,
+        "firstName": first, "lastName": last, "title": None, "gender": None,
+        "mobileNumber": f"+44 7700 900{rnd.randint(0, 999):03d}",  # Ofcom's reserved drama range: not real numbers
+        "birthDate": born.isoformat() + "T00:00:00.000Z", "age": NOW.year - born.year,
+        "countryCode": "GB", "countryName": "United Kingdom", "distanceToClub": dist, "metadata": {},
         "createdAt": iso(joined), "updatedAt": iso(NOW - timedelta(days=rnd.randint(0, 30))),
     })
+    FAVOURITE[uid] = oid("opt-" + rnd.choice(PLAYERS)["id"]) if rnd.random() < 0.9 else None
     if f in INACTIVE:
         continue  # profile only: no tickets, retail or structured events
     for ev in HOME_PAST:
@@ -171,17 +182,21 @@ for f in range(NUM_FANS):
             stand = rnd.choice(STANDS)
             TICKETS.append({
                 "scvUserTicketId": tid, "scvUserId": uid, "productId": ev["id"],
-                "productName": f"Crystal Palace v {opp}", "venueName": "Selhurst Park",
+                "productName": f"Crystal Palace v {opp}", "productStartDate": ev["date"],
+                "competitionName": ev["competition"]["name"], "homeTeamName": "Crystal Palace", "awayTeamName": opp,
+                "venueName": "Selhurst Park", "stadiumName": "Selhurst Park",
                 "transactionDate": iso(tdate), "transactionValue": float(rnd.choice([28, 32, 38, 45, 55])),
-                "stand": stand, "seatRow": rnd.choice("ABCDEFGHJK"), "seatNumber": rnd.randint(1, 60),  # INFERRED: stand, seatNumber
-                "hasAttended": attended, "createdAt": iso(tdate), "updatedAt": ev["date"],
+                "standName": stand, "areaName": stand, "blockName": f"Block {rnd.randint(1, 40)}",
+                "seatRow": rnd.choice("ABCDEFGHJK"), "seatNumber": str(rnd.randint(1, 60)),
+                "hasAttended": attended, "arrivalTime": ev["date"] if attended else None,
+                "createdAt": iso(tdate), "updatedAt": ev["date"],
             })
             if attended:
                 for pid, pname, cat, price in rnd.sample(RETAIL, rnd.randint(0, 3)):
                     qty = rnd.randint(1, 2)
                     RETAILS.append({
                         "scvUserRetailId": _row_ids("retail", len(RETAILS)), "scvUserId": uid, "productId": pid,
-                        "productName": pname, "category": cat,  # INFERRED: productName, category
+                        "productDescription": pname, "productCategory": cat,
                         "transactionDate": ev["date"], "transactionValue": round(price * qty, 2),
                         "transactionQuantity": qty, "isRefunded": False, "createdAt": ev["date"], "updatedAt": ev["date"],
                     })
@@ -199,3 +214,13 @@ for f in range(NUM_FANS):
             "value": float(rnd.randint(1, 120)) if cat == "video" else 1.0,
             "createdAt": iso(d), "updatedAt": iso(d),
         })
+
+
+# ---------- Preferences Centre: "Favourite player" (documented as the example preference) ----------
+FAVOURITE_PLAYER_PREF = {
+    "name": "Favourite player", "key": "favouritePlayer", "type": "", "visualType": "Select", "deprecated": False,
+    "options": [{
+        "id": oid("opt-" + p["id"]), "index": i + 1, "value": f"{p['forename']} {p['surname']}",
+        "linkedIds": [{"sourceSystem": "OPTA_FOOTBALL_PLAYER", "sourceSystemId": str(3000 + i)}], "metadata": {},
+    } for i, p in enumerate(PLAYERS)],
+}

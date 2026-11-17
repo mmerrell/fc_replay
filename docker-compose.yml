@@ -1,0 +1,67 @@
+name: fc_replay
+
+services:
+  temporal:
+    image: temporalio/temporal:latest        # dev server (in-memory); Web UI on :8233
+    command: ["server", "start-dev", "--ip", "0.0.0.0", "--ui-ip", "0.0.0.0"]
+    ports:
+      - "7233:7233"
+      - "8233:8233"
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "localhost:7233"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  cortex-mock:
+    build: ./cortex-mock
+    ports:
+      - "8080:8080"
+    environment:
+      CLIENT_ID: DEMO
+      SEED: "42"
+      NUM_FANS: "100"
+      INACTIVE_FANS: "15"
+      # MOCK_NOW: "2026-11-17T12:00:00+00:00"   # freeze "today" for a stable demo
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/_mock/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  worker:
+    build:
+      context: ./worker
+      args:
+        BUILD_ID: ${BUILD_ID:-1.0}
+    image: fc-replay-worker:${BUILD_ID:-1.0}
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_NAMESPACE: default
+      TEMPORAL_TASK_QUEUE: member-replay
+      TEMPORAL_DEPLOYMENT: member-replay
+      CORTEX_BASE_URL: http://cortex-mock:8080
+      CORTEX_CLIENT_ID: DEMO
+    depends_on:
+      temporal:
+        condition: service_healthy
+      cortex-mock:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # One-shot: makes the worker's build current, creates the recurring sync Schedule, runs the first sync.
+  bootstrap:
+    image: temporalio/admin-tools:latest
+    entrypoint: ["/bin/sh", "/bootstrap.sh"]
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_DEPLOYMENT: member-replay
+      TEMPORAL_TASK_QUEUE: member-replay
+      BUILD_ID: ${BUILD_ID:-1.0}
+      SYNC_EVERY: 5m
+    volumes:
+      - ./bootstrap/bootstrap.sh:/bootstrap.sh:ro
+    depends_on:
+      worker:
+        condition: service_started
+    restart: "no"

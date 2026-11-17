@@ -1,5 +1,7 @@
-__pycache__/
-*.pyc
-.venv/
 *.egg-info/
+*.pyc
 *.tgz
+.DS_Store
+.idea/
+.venv/
+__pycache__/
