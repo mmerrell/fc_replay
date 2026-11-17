@@ -1,0 +1,19 @@
+services:
+  cortex-mock:
+    build: .
+    container_name: cortex-mock
+    ports:
+      - "8080:8080"
+    environment:
+      CLIENT_ID: DEMO        # the {client-ID} segment in every URL
+      SEED: "42"             # change for a different fake dataset
+      NUM_FANS: "100"
+      INACTIVE_FANS: "15"     # fans with a profile but no activity at all
+      # API_KEY: demo-key    # uncomment to require X-API-Key on the SFV query endpoint
+      # MOCK_NOW: "2026-11-17T12:00:00+00:00"   # freeze "today" so results/fixtures split is stable
+    restart: unless-stopped
+    # To sit behind your workshop proxy, attach it to the proxy's network, e.g.:
+    # networks: [proxy_net]
+# networks:
+#   proxy_net:
+#     external: true
